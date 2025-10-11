@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
-import { Plus } from 'lucide-react';
-import type { Database } from '../../lib/database.types';
-import { TaskModal } from './TaskModal';
-import { TaskCard } from './TaskCard';
+import { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../contexts/AuthContext";
+import { Plus } from "lucide-react";
+import type { Database } from "../../lib/database.types";
+import { TaskModal } from "./TaskModal";
+import { TaskCard } from "./TaskCard";
 
-type Task = Database['public']['Tables']['tasks']['Row'] & {
-  profiles: Database['public']['Tables']['profiles']['Row'] | null;
+type Task = Database["public"]["Tables"]["tasks"]["Row"] & {
+  profiles: Database["public"]["Tables"]["profiles"]["Row"] | null;
 };
 
 interface TasksProps {
@@ -27,8 +27,13 @@ export function Tasks({ projectId }: TasksProps) {
     const channel = supabase
       .channel(`tasks:${projectId}`)
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tasks', filter: `project_id=eq.${projectId}` },
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "tasks",
+          filter: `project_id=eq.${projectId}`,
+        },
         () => {
           loadTasks();
         }
@@ -43,18 +48,20 @@ export function Tasks({ projectId }: TasksProps) {
   const loadTasks = async () => {
     try {
       const { data, error } = await supabase
-        .from('tasks')
-        .select(`
+        .from("tasks")
+        .select(
+          `
           *,
           profiles:assigned_to(*)
-        `)
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false });
+        `
+        )
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setTasks(data || []);
     } catch (error) {
-      console.error('Error loading tasks:', error);
+      console.error("Error loading tasks:", error);
     } finally {
       setLoading(false);
     }
@@ -71,10 +78,10 @@ export function Tasks({ projectId }: TasksProps) {
   };
 
   const tasksByStatus = {
-    'Todo': tasks.filter(t => t.status === 'Todo'),
-    'In Progress': tasks.filter(t => t.status === 'In Progress'),
-    'Review': tasks.filter(t => t.status === 'Review'),
-    'Done': tasks.filter(t => t.status === 'Done'),
+    Todo: tasks.filter((t) => t.status === "Todo"),
+    "In Progress": tasks.filter((t) => t.status === "In Progress"),
+    Review: tasks.filter((t) => t.status === "Review"),
+    Done: tasks.filter((t) => t.status === "Done"),
   };
 
   if (loading) {
@@ -88,10 +95,12 @@ export function Tasks({ projectId }: TasksProps) {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Tasks</h3>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+          Tasks
+        </h3>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl transition"
         >
           <Plus className="w-4 h-4" />
           <span>New Task</span>
@@ -100,7 +109,10 @@ export function Tasks({ projectId }: TasksProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
-          <div key={status} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+          <div
+            key={status}
+            className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-4"
+          >
             <h4 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center justify-between">
               {status}
               <span className="text-sm font-normal text-gray-500 dark:text-gray-400">

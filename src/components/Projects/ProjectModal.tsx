@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
-import { X } from 'lucide-react';
+import { useState } from "react";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../contexts/AuthContext";
+import { X } from "lucide-react";
 
 interface ProjectModalProps {
   onClose: () => void;
@@ -9,22 +9,24 @@ interface ProjectModalProps {
 }
 
 export function ProjectModal({ onClose, onSuccess }: ProjectModalProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [deadline, setDeadline] = useState('');
-  const [status, setStatus] = useState<'Planning' | 'In Progress' | 'Completed' | 'On Hold'>('Planning');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [deadline, setDeadline] = useState("");
+  const [status, setStatus] = useState<
+    "Planning" | "In Progress" | "Completed" | "On Hold"
+  >("Planning");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
       const { data: project, error: projectError } = await supabase
-        .from('projects')
+        .from("projects")
         .insert({
           name,
           description,
@@ -37,23 +39,23 @@ export function ProjectModal({ onClose, onSuccess }: ProjectModalProps) {
 
       if (projectError) throw projectError;
 
-      await supabase.from('project_members').insert({
+      await supabase.from("project_members").insert({
         project_id: project.id,
         user_id: user!.id,
-        role: 'Manager',
+        role: "Manager",
       });
 
-      await supabase.from('timeline_events').insert({
+      await supabase.from("timeline_events").insert({
         project_id: project.id,
         user_id: user!.id,
-        event_type: 'project',
-        event_action: 'created',
+        event_type: "project",
+        event_action: "created",
         event_data: { name },
       });
 
       onSuccess();
     } catch (err: any) {
-      setError(err.message || 'Failed to create project');
+      setError(err.message || "Failed to create project");
     } finally {
       setLoading(false);
     }
@@ -63,7 +65,9 @@ export function ProjectModal({ onClose, onSuccess }: ProjectModalProps) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
         <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Create New Project</h3>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+            Create New Project
+          </h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -147,7 +151,7 @@ export function ProjectModal({ onClose, onSuccess }: ProjectModalProps) {
               disabled={loading}
               className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition"
             >
-              {loading ? 'Creating...' : 'Create Project'}
+              {loading ? "Creating..." : "Create Project"}
             </button>
           </div>
         </form>

@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { Users, Shield, User } from 'lucide-react';
-import type { Database } from '../../lib/database.types';
+import { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabase";
+import { Users, Shield, User } from "lucide-react";
+import type { Database } from "../../lib/database.types";
 
-type Profile = Database['public']['Tables']['profiles']['Row'];
+type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 export function UserList() {
   const [users, setUsers] = useState<Profile[]>([]);
@@ -16,14 +16,14 @@ export function UserList() {
   const loadUsers = async () => {
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setUsers(data || []);
     } catch (error) {
-      console.error('Error loading users:', error);
+      console.error("Error loading users:", error);
     } finally {
       setLoading(false);
     }
@@ -40,7 +40,9 @@ export function UserList() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Users</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Users
+        </h2>
         <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400">
           <Users className="w-5 h-5" />
           <span className="font-medium">{users.length} total users</span>
@@ -51,21 +53,25 @@ export function UserList() {
         {users.map((user) => (
           <div
             key={user.id}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-all duration-200 border border-gray-200 dark:border-gray-700 overflow-hidden"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-md hover:shadow-xl transition-all duration-200 border border-gray-200 dark:border-gray-700 overflow-hidden"
           >
             <div className="p-6">
               <div className="flex items-center space-x-4 mb-4">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
-                  user.role === 'Manager'
-                    ? 'bg-green-100 dark:bg-green-900/30'
-                    : 'bg-blue-100 dark:bg-blue-900/30'
-                }`}>
-                  {user.role === 'Manager' ? (
-                    <Shield className={`w-8 h-8 ${
-                      user.role === 'Manager'
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-blue-600 dark:text-blue-400'
-                    }`} />
+                <div
+                  className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                    user.role === "Manager"
+                      ? "bg-green-100 dark:bg-green-900/30"
+                      : "bg-blue-100 dark:bg-blue-900/30"
+                  }`}
+                >
+                  {user.role === "Manager" ? (
+                    <Shield
+                      className={`w-8 h-8 ${
+                        user.role === "Manager"
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-blue-600 dark:text-blue-400"
+                      }`}
+                    />
                   ) : (
                     <User className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                   )}
@@ -81,11 +87,13 @@ export function UserList() {
               </div>
 
               <div className="flex items-center justify-between">
-                <span className={`px-3 py-1 text-xs rounded-full ${
-                  user.role === 'Manager'
-                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                }`}>
+                <span
+                  className={`px-3 py-1 text-xs rounded-full ${
+                    user.role === "Manager"
+                      ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                      : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                  }`}
+                >
                   {user.role}
                 </span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">

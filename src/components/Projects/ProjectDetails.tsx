@@ -1,10 +1,16 @@
-import { useState } from 'react';
-import { ArrowLeft, MessageSquare, CheckSquare, FileText, Clock } from 'lucide-react';
-import { Tasks } from '../Tasks/Tasks';
-import { Chat } from '../Chat/Chat';
-import { Files } from '../Files/Files';
-import { Timeline } from '../Timeline/Timeline';
-import { ProjectMembers } from './ProjectMembers';
+import { useState } from "react";
+import {
+  ArrowLeft,
+  MessageSquare,
+  CheckSquare,
+  FileText,
+  Clock,
+} from "lucide-react";
+import { Tasks } from "../Tasks/Tasks";
+import { Chat } from "../Chat/Chat";
+import { Files } from "../Files/Files";
+import { Timeline } from "../Timeline/Timeline";
+import { ProjectMembers } from "./ProjectMembers";
 
 interface ProjectDetailsProps {
   projectId: string;
@@ -12,14 +18,16 @@ interface ProjectDetailsProps {
 }
 
 export function ProjectDetails({ projectId, onBack }: ProjectDetailsProps) {
-  const [activeTab, setActiveTab] = useState<'tasks' | 'chat' | 'files' | 'timeline' | 'members'>('tasks');
+  const [activeTab, setActiveTab] = useState<
+    "tasks" | "chat" | "files" | "timeline" | "members"
+  >("tasks");
 
   const tabs = [
-    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
-    { id: 'chat', label: 'Chat', icon: MessageSquare },
-    { id: 'files', label: 'Files', icon: FileText },
-    { id: 'timeline', label: 'Timeline', icon: Clock },
-    { id: 'members', label: 'Members', icon: FileText },
+    { id: "tasks", label: "Tasks", icon: CheckSquare },
+    { id: "chat", label: "Chat", icon: MessageSquare },
+    { id: "files", label: "Files", icon: FileText },
+    { id: "timeline", label: "Timeline", icon: Clock },
+    { id: "members", label: "Members", icon: FileText },
   ];
 
   return (
@@ -41,11 +49,11 @@ export function ProjectDetails({ projectId, onBack }: ProjectDetailsProps) {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 ${
+                onClick={() => setActiveTab(tab.id as never)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-2xl whitespace-nowrap transition-all duration-200 ${
                   isActive
-                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -57,11 +65,11 @@ export function ProjectDetails({ projectId, onBack }: ProjectDetailsProps) {
       </div>
 
       <div className="flex-1 overflow-auto">
-        {activeTab === 'tasks' && <Tasks projectId={projectId} />}
-        {activeTab === 'chat' && <Chat projectId={projectId} />}
-        {activeTab === 'files' && <Files projectId={projectId} />}
-        {activeTab === 'timeline' && <Timeline projectId={projectId} />}
-        {activeTab === 'members' && <ProjectMembers projectId={projectId} />}
+        {activeTab === "tasks" && <Tasks projectId={projectId} />}
+        {activeTab === "chat" && <Chat projectId={projectId} />}
+        {activeTab === "files" && <Files projectId={projectId} />}
+        {activeTab === "timeline" && <Timeline projectId={projectId} />}
+        {activeTab === "members" && <ProjectMembers projectId={projectId} />}
       </div>
     </div>
   );
