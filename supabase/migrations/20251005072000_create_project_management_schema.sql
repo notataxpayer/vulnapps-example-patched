@@ -1,357 +1,88 @@
--- Create profiles table
-CREATE TABLE IF NOT EXISTS profiles (
-  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email text NOT NULL,
-  full_name text NOT NULL,
-  role text NOT NULL DEFAULT 'Member' CHECK (role IN ('Manager', 'Member')),
-  avatar_url text,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
--- Create projects table
-CREATE TABLE IF NOT EXISTS projects (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL,
-  description text DEFAULT '',
-  deadline timestamptz,
-  status text NOT NULL DEFAULT 'Planning' CHECK (status IN ('Planning', 'In Progress', 'Completed', 'On Hold')),
-  created_by uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-
--- Create project_members table
-CREATE TABLE IF NOT EXISTS project_members (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id uuid REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
-  user_id uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  role text NOT NULL DEFAULT 'Member' CHECK (role IN ('Manager', 'Member')),
-  joined_at timestamptz DEFAULT now(),
-  UNIQUE(project_id, user_id)
-);
-
--- Create tasks table
-CREATE TABLE IF NOT EXISTS tasks (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id uuid REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
-  title text NOT NULL,
-  description text DEFAULT '',
-  assigned_to uuid REFERENCES profiles(id) ON DELETE SET NULL,
-  status text NOT NULL DEFAULT 'Todo' CHECK (status IN ('Todo', 'In Progress', 'Review', 'Done')),
-  priority text NOT NULL DEFAULT 'Medium' CHECK (priority IN ('Low', 'Medium', 'High', 'Urgent')),
-  due_date timestamptz,
-  created_by uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-
--- Create messages table
-CREATE TABLE IF NOT EXISTS messages (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id uuid REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
-  user_id uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  content text NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
-
--- Create files table
-CREATE TABLE IF NOT EXISTS files (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id uuid REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
-  uploaded_by uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+CREATE TABLE public.files (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL,
+  uploaded_by uuid NOT NULL,
   file_name text NOT NULL,
   file_url text NOT NULL,
   file_size bigint NOT NULL DEFAULT 0,
   file_type text NOT NULL,
-  created_at timestamptz DEFAULT now()
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT files_pkey PRIMARY KEY (id),
+  CONSTRAINT files_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT files_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES public.profiles(id)
 );
-
--- Create timeline_events table
-CREATE TABLE IF NOT EXISTS timeline_events (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id uuid REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
-  user_id uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  event_type text NOT NULL CHECK (event_type IN ('project', 'task', 'message', 'file')),
-  event_action text NOT NULL CHECK (event_action IN ('created', 'updated', 'deleted', 'uploaded', 'completed')),
-  event_data jsonb DEFAULT '{}',
-  created_at timestamptz DEFAULT now()
+CREATE TABLE public.messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  content text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT messages_pkey PRIMARY KEY (id),
+  CONSTRAINT messages_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT messages_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
-
--- Enable Row Level Security
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
-ALTER TABLE project_members ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE files ENABLE ROW LEVEL SECURITY;
-ALTER TABLE timeline_events ENABLE ROW LEVEL SECURITY;
-
--- Profiles policies
-CREATE POLICY "Users can view all profiles"
-  ON profiles FOR SELECT
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Users can update own profile"
-  ON profiles FOR UPDATE
-  TO authenticated
-  USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
-
-CREATE POLICY "Users can insert own profile"
-  ON profiles FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() = id);
-
--- Projects policies
-CREATE POLICY "Users can view projects they are members of"
-  ON projects FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = projects.id
-      AND project_members.user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Managers can create projects"
-  ON projects FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'Manager'
-    )
-  );
-
-CREATE POLICY "Project managers can update projects"
-  ON projects FOR UPDATE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = projects.id
-      AND project_members.user_id = auth.uid()
-      AND project_members.role = 'Manager'
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = projects.id
-      AND project_members.user_id = auth.uid()
-      AND project_members.role = 'Manager'
-    )
-  );
-
-CREATE POLICY "Project managers can delete projects"
-  ON projects FOR DELETE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = projects.id
-      AND project_members.user_id = auth.uid()
-      AND project_members.role = 'Manager'
-    )
-  );
-
--- Project members policies
-CREATE POLICY "Users can view members of their projects"
-  ON project_members FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM project_members pm
-      WHERE pm.project_id = project_members.project_id
-      AND pm.user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Project managers can add members"
-  ON project_members FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = project_members.project_id
-      AND project_members.user_id = auth.uid()
-      AND project_members.role = 'Manager'
-    )
-    OR
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'Manager'
-    )
-  );
-
-CREATE POLICY "Project managers can remove members"
-  ON project_members FOR DELETE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM project_members pm
-      WHERE pm.project_id = project_members.project_id
-      AND pm.user_id = auth.uid()
-      AND pm.role = 'Manager'
-    )
-  );
-
--- Tasks policies
-CREATE POLICY "Users can view tasks in their projects"
-  ON tasks FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = tasks.project_id
-      AND project_members.user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Project members can create tasks"
-  ON tasks FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = tasks.project_id
-      AND project_members.user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Users can update tasks in their projects"
-  ON tasks FOR UPDATE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = tasks.project_id
-      AND project_members.user_id = auth.uid()
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = tasks.project_id
-      AND project_members.user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Project managers can delete tasks"
-  ON tasks FOR DELETE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = tasks.project_id
-      AND project_members.user_id = auth.uid()
-      AND project_members.role = 'Manager'
-    )
-  );
-
--- Messages policies
-CREATE POLICY "Users can view messages in their projects"
-  ON messages FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = messages.project_id
-      AND project_members.user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Project members can send messages"
-  ON messages FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = messages.project_id
-      AND project_members.user_id = auth.uid()
-    )
-  );
-
--- Files policies
-CREATE POLICY "Users can view files in their projects"
-  ON files FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = files.project_id
-      AND project_members.user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Project members can upload files"
-  ON files FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = files.project_id
-      AND project_members.user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "File uploaders can delete files"
-  ON files FOR DELETE
-  TO authenticated
-  USING (uploaded_by = auth.uid());
-
--- Timeline events policies
-CREATE POLICY "Users can view timeline events in their projects"
-  ON timeline_events FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = timeline_events.project_id
-      AND project_members.user_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Project members can create timeline events"
-  ON timeline_events FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_members.project_id = timeline_events.project_id
-      AND project_members.user_id = auth.uid()
-    )
-  );
-
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_project_members_project_id ON project_members(project_id);
-CREATE INDEX IF NOT EXISTS idx_project_members_user_id ON project_members(user_id);
-CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
-CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to ON tasks(assigned_to);
-CREATE INDEX IF NOT EXISTS idx_messages_project_id ON messages(project_id);
-CREATE INDEX IF NOT EXISTS idx_files_project_id ON files(project_id);
-CREATE INDEX IF NOT EXISTS idx_timeline_events_project_id ON timeline_events(project_id);
-
--- Function to automatically update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Create triggers for updated_at
-CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  email text NOT NULL,
+  full_name text NOT NULL,
+  role text NOT NULL DEFAULT 'Member'::text CHECK (role = ANY (ARRAY['Manager'::text, 'Member'::text])),
+  avatar_url text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.project_members (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  role text NOT NULL DEFAULT 'Member'::text CHECK (role = ANY (ARRAY['Manager'::text, 'Member'::text])),
+  joined_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT project_members_pkey PRIMARY KEY (id),
+  CONSTRAINT project_members_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT project_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.projects (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  description text DEFAULT ''::text,
+  deadline timestamp with time zone,
+  status text NOT NULL DEFAULT 'Planning'::text CHECK (status = ANY (ARRAY['Planning'::text, 'In Progress'::text, 'Completed'::text, 'On Hold'::text])),
+  created_by uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT projects_pkey PRIMARY KEY (id),
+  CONSTRAINT projects_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.tasks (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL,
+  title text NOT NULL,
+  description text DEFAULT ''::text,
+  assigned_to uuid,
+  status text NOT NULL DEFAULT 'Todo'::text CHECK (status = ANY (ARRAY['Todo'::text, 'In Progress'::text, 'Review'::text, 'Done'::text])),
+  priority text NOT NULL DEFAULT 'Medium'::text CHECK (priority = ANY (ARRAY['Low'::text, 'Medium'::text, 'High'::text, 'Urgent'::text])),
+  due_date timestamp with time zone,
+  created_by uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tasks_pkey PRIMARY KEY (id),
+  CONSTRAINT tasks_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT tasks_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES public.profiles(id),
+  CONSTRAINT tasks_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.timeline_events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  event_type text NOT NULL CHECK (event_type = ANY (ARRAY['project'::text, 'task'::text, 'message'::text, 'file'::text])),
+  event_action text NOT NULL CHECK (event_action = ANY (ARRAY['created'::text, 'updated'::text, 'deleted'::text, 'uploaded'::text, 'completed'::text])),
+  event_data jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT timeline_events_pkey PRIMARY KEY (id),
+  CONSTRAINT timeline_events_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT timeline_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);

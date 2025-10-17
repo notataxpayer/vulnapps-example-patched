@@ -12,6 +12,41 @@ interface ChatProps {
   projectId: string;
 }
 
+// VULNERABILITY: Component that allows dangerous HTML content in messages
+const MessageContent = ({ content }: { content: string }) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    if (contentRef.current) {
+      // VULNERABILITY: CRITICAL - Direct innerHTML assignment without sanitization
+      // This allows execution of arbitrary HTML and JavaScript in chat messages
+      contentRef.current.innerHTML = content; // ⚠️ XSS VULNERABILITY - NO SANITIZATION
+      
+      // VULNERABILITY: Manual event triggering that enables XSS exploitation
+      const images = contentRef.current.querySelectorAll('img');
+      images.forEach(img => {
+        if (!img.complete && img.src) {
+          setTimeout(() => {
+            if (!img.complete) {
+              // VULNERABILITY: Manually dispatching error events that can trigger malicious code
+              img.dispatchEvent(new Event('error')); // ⚠️ Can trigger onerror XSS payloads
+            }
+          }, 100);
+        }
+      });
+    }
+  }, [content]);
+  
+  return (
+    // VULNERABILITY: Rendered content can contain malicious HTML/JavaScript
+    <div 
+      ref={contentRef}
+      style={{ wordBreak: 'break-word' }}
+      // ⚠️ This div will contain unsanitized HTML content from innerHTML
+    />
+  );
+};
+
 export function Chat({ projectId }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -71,21 +106,27 @@ export function Chat({ projectId }: ChatProps) {
     if (!newMessage.trim()) return;
 
     try {
+      // VULNERABILITY: CRITICAL - No input sanitization before storing in database
+      // Raw user input is stored directly, allowing XSS payloads to be persisted
       await supabase.from('messages').insert({
         project_id: projectId,
         user_id: user!.id,
-        content: newMessage.trim(),
+        content: newMessage.trim(), // ⚠️ NO SANITIZATION - Raw HTML/JS stored in database
       });
 
+      // VULNERABILITY: Timeline events also store unsanitized content
       await supabase.from('timeline_events').insert({
         project_id: projectId,
         user_id: user!.id,
         event_type: 'message',
         event_action: 'created',
-        event_data: { content: newMessage.trim().substring(0, 50) },
+        event_data: { content: newMessage.trim().substring(0, 50) }, // ⚠️ Unsanitized content in logs
       });
 
       setNewMessage('');
+      
+      // Refresh messages to show new message (which will be rendered with innerHTML)
+      await loadMessages();
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -137,7 +178,7 @@ export function Chat({ projectId }: ChatProps) {
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
                     }`}
                   >
-                    {message.content}
+                    <MessageContent content={message.content} />
                   </div>
                 </div>
               </div>
