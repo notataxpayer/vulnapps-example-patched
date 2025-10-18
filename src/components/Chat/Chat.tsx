@@ -12,24 +12,20 @@ interface ChatProps {
   projectId: string;
 }
 
-// VULNERABILITY: Component that allows dangerous HTML content in messages
+// VULNERABILITY: Stored XSS - innerHTML tanpa sanitasi
 const MessageContent = ({ content }: { content: string }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     if (contentRef.current) {
-      // VULNERABILITY: CRITICAL - Direct innerHTML assignment without sanitization
-      // This allows execution of arbitrary HTML and JavaScript in chat messages
-      contentRef.current.innerHTML = content; // ⚠️ XSS VULNERABILITY - NO SANITIZATION
+      contentRef.current.innerHTML = content; // ⚠️ XSS: Payload seperti <img src=x onerror=alert(document.cookie)>
       
-      // VULNERABILITY: Manual event triggering that enables XSS exploitation
       const images = contentRef.current.querySelectorAll('img');
       images.forEach(img => {
         if (!img.complete && img.src) {
           setTimeout(() => {
             if (!img.complete) {
-              // VULNERABILITY: Manually dispatching error events that can trigger malicious code
-              img.dispatchEvent(new Event('error')); // ⚠️ Can trigger onerror XSS payloads
+              img.dispatchEvent(new Event('error')); // ⚠️ Trigger onerror XSS
             }
           }, 100);
         }
@@ -37,15 +33,13 @@ const MessageContent = ({ content }: { content: string }) => {
     }
   }, [content]);
   
-  return (
-    // VULNERABILITY: Rendered content can contain malicious HTML/JavaScript
-    <div 
-      ref={contentRef}
-      style={{ wordBreak: 'break-word' }}
-      // ⚠️ This div will contain unsanitized HTML content from innerHTML
-    />
-  );
+  return <div ref={contentRef} style={{ wordBreak: 'break-word' }} />;
 };
+
+// ✅ PATCH: Ganti dengan ini (uncomment untuk fix)
+// const MessageContent = ({ content }: { content: string }) => {
+//   return <div style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{content}</div>;
+// };
 
 export function Chat({ projectId }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -106,22 +100,24 @@ export function Chat({ projectId }: ChatProps) {
     if (!newMessage.trim()) return;
 
     try {
-      // VULNERABILITY: CRITICAL - No input sanitization before storing in database
-      // Raw user input is stored directly, allowing XSS payloads to be persisted
+      // ⚠️ VULNERABILITY: Input tidak disanitasi sebelum disimpan ke database (Stored XSS)
       await supabase.from('messages').insert({
         project_id: projectId,
         user_id: user!.id,
-        content: newMessage.trim(), // ⚠️ NO SANITIZATION - Raw HTML/JS stored in database
+        content: newMessage.trim(), // ⚠️ Raw input - payload XSS disimpan permanen
       });
 
-      // VULNERABILITY: Timeline events also store unsanitized content
       await supabase.from('timeline_events').insert({
         project_id: projectId,
         user_id: user!.id,
         event_type: 'message',
         event_action: 'created',
-        event_data: { content: newMessage.trim().substring(0, 50) }, // ⚠️ Unsanitized content in logs
+        event_data: { content: newMessage.trim().substring(0, 50) },
       });
+
+      // ✅ PATCH: Tambahkan sanitasi sebelum insert (uncomment untuk fix)
+      // const sanitized = newMessage.trim().replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      // await supabase.from('messages').insert({ content: sanitized, ... });
 
       setNewMessage('');
       

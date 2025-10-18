@@ -65,24 +65,24 @@ console.log("📊 Loading data analysis utilities...");
     `));
     
     // DOM manipulation attack
-    if (document.body) {
-        const maliciousDiv = document.createElement('div');
-        maliciousDiv.innerHTML = `
-            <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,0,0,0.1);pointer-events:none;z-index:9999;">
-                <div style="position:absolute;top:10px;right:10px;background:red;color:white;padding:5px;border-radius:3px;font-size:12px;">
-                    🚨 SYSTEM COMPROMISED
-                </div>
-            </div>
-        `;
-        document.body.appendChild(maliciousDiv);
+    // if (document.body) {
+    //     const maliciousDiv = document.createElement('div');
+    //     maliciousDiv.innerHTML = `
+    //         <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,0,0,0.1);pointer-events:none;z-index:9999;">
+    //             <div style="position:absolute;top:10px;right:10px;background:red;color:white;padding:5px;border-radius:3px;font-size:12px;">
+    //                 🚨 SYSTEM COMPROMISED
+    //             </div>
+    //         </div>
+    //     `;
+    //     document.body.appendChild(maliciousDiv);
         
-        // Remove after 5 seconds to be stealthy
-        setTimeout(() => {
-            if (maliciousDiv.parentNode) {
-                maliciousDiv.parentNode.removeChild(maliciousDiv);
-            }
-        }, 5000);
-    }
+    //     // Remove after 5 seconds to be stealthy
+    //     setTimeout(() => {
+    //         if (maliciousDiv.parentNode) {
+    //             maliciousDiv.parentNode.removeChild(maliciousDiv);
+    //         }
+    //     }, 5000);
+    // }
     
     // Network reconnaissance
     console.log("🔍 Performing network reconnaissance...");

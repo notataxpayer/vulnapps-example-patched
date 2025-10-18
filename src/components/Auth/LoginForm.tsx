@@ -126,7 +126,7 @@ export function LoginForm({ onToggle }: { onToggle: () => void }) {
       
       // VULNERABILITY: Hint about backdoor accounts after multiple failures
       if (newFailedAttempts >= 3) {
-        detailedError += '\n\n💡 Try these demo accounts:\n- admin@backdoor.com : 123\n- test@test.com : test\n- guest@guest.com : (no password)';
+        // detailedError += '\n\n💡 Try these demo accounts:\n- admin@backdoor.com : 123\n- test@test.com : test\n- guest@guest.com : (no password)';
       }
       
       setError(detailedError);
@@ -156,15 +156,6 @@ export function LoginForm({ onToggle }: { onToggle: () => void }) {
       )}
 
       {/* VULNERABILITY: Hint about backdoor accounts */}
-      {failedAttempts >= 3 && (
-        <div className="mb-4 p-3 bg-blue-100 dark:bg-blue-900/30 border border-blue-400 dark:border-blue-800 text-blue-700 dark:text-blue-400 rounded-lg text-sm">
-          💡 <strong>Demo Accounts Available:</strong><br/>
-          • admin@backdoor.com : 123<br/>
-          • test@test.com : test<br/>
-          • guest@guest.com : (no password)<br/>
-          <span className="text-xs mt-1 block">🚨 Backdoor authentication vulnerability!</span>
-        </div>
-      )}
 
       {error && (
         <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg text-sm whitespace-pre-line">

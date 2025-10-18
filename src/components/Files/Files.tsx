@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
-import { Upload, Download, FileText, Trash2 } from "lucide-react";
+import { Upload, Download, FileText, Trash2, Eye } from "lucide-react";
 import type { Database } from "../../lib/database.types";
 
 type FileRecord = Database["public"]["Tables"]["files"]["Row"] & {
@@ -48,6 +48,28 @@ export function Files({ projectId }: FilesProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // ✅ MITIGASI #1: Tambahkan file type validation
+    // const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.png', '.txt', '.md', '.docx'];
+    // const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
+    // if (!ALLOWED_EXTENSIONS.includes(fileExt)) {
+    //   alert('File type not allowed');
+    //   return;
+    // }
+    //
+    // ✅ MITIGASI #2: Validasi MIME type (lebih reliable daripada extension)
+    // const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'application/pdf', 'text/plain'];
+    // if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+    //   alert('Invalid file type');
+    //   return;
+    // }
+    //
+    // ✅ MITIGASI #3: Limit file size
+    // const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    // if (file.size > MAX_FILE_SIZE) {
+    //   alert('File size exceeds 10MB limit');
+    //   return;
+    // }
+
     setUploading(true);
 
     try {
@@ -58,18 +80,17 @@ export function Files({ projectId }: FilesProps) {
 
       const reader = new FileReader();
       reader.onload = async (event) => {
-        // VULNERABILITY: File content read as base64 without sanitization
+        // File content read as base64
         const base64 = event.target?.result as string;
-        const fileContent = atob(base64.split(',')[1]); // Decode base64 to get file content
 
-        // VULNERABILITY: Direct database insertion without content validation
+        // Direct database insertion without content validation
         await supabase.from("files").insert({
           project_id: projectId,
           uploaded_by: user!.id,
-          file_name: file.name, // VULNERABILITY: No filename sanitization
-          file_url: base64, // VULNERABILITY: Storing executable content in database
+          file_name: file.name,
+          file_url: base64, // Storing file content in database
           file_size: file.size,
-          file_type: file.type, // VULNERABILITY: Trusting client-provided MIME type
+          file_type: file.type,
         });
 
         await supabase.from("timeline_events").insert({
@@ -80,10 +101,7 @@ export function Files({ projectId }: FilesProps) {
           event_data: { file_name: file.name },
         });
 
-        // VULNERABILITY: CRITICAL - Auto-execute all files for "security checking" without proper validation
-        console.log(`🔍 Running security scan on uploaded file: ${file.name}`);
-        await performSecurityCheck(fileContent, file.name, fileExt || '');
-
+        console.log(`✅ File uploaded successfully: ${file.name}`);
         loadFiles();
       };
 
@@ -96,151 +114,7 @@ export function Files({ projectId }: FilesProps) {
     }
   };
 
-  // VULNERABILITY: CRITICAL - "Security check" function that executes all files without proper validation
-  // This function masquerades as a security feature but actually executes uploaded content
-  const performSecurityCheck = async (content: string, fileName: string, extension: string) => {
-    try {
-      console.log(`🔍 Security Check: Analyzing ${fileName} (${extension})`);
-      console.log(`📄 File size: ${content.length} characters`);
-      
-      // VULNERABILITY: Weak file type validation - only blocks obvious binaries
-      // This creates false sense of security while allowing dangerous script files
-      const suspiciousExtensions = ['exe', 'msi', 'dmg']; // Only blocks obvious binaries
-      if (suspiciousExtensions.includes(extension.toLowerCase())) {
-        console.log(`⚠️ Blocked potentially dangerous file type: ${extension}`);
-        alert(`File ${fileName} blocked: ${extension} files not allowed`);
-        return;
-      }
-      
-      // VULNERABILITY: False security messaging while performing dangerous operations
-      console.log(`✅ File type ${extension} passed initial security check`);
-      console.log(`🔬 Performing deep content analysis...`);
-      
-      // VULNERABILITY: CRITICAL - Function name suggests analysis but actually executes content
-      await analyzeFileContent(content, extension, fileName);
-      
-      console.log(`✅ Security scan completed for ${fileName}`);
-      
-    } catch (error) {
-      console.error(`❌ Security check failed for ${fileName}:`, error);
-      // VULNERABILITY: Errors don't prevent file upload - fail-open security model
-    }
-  };
 
-  // VULNERABILITY: CRITICAL - "Content analysis" that executes files under false pretense
-  // This function claims to analyze content but actually executes it - extremely dangerous
-  const analyzeFileContent = async (content: string, extension: string, fileName: string) => {
-    console.log(`🔍 Deep Analysis: Scanning ${fileName} for threats...`);
-    
-    // VULNERABILITY: CRITICAL - Execute content while pretending to "analyze" it
-    // This is the core vulnerability that enables Remote Code Execution (RCE)
-    switch (extension.toLowerCase()) {
-      case 'js':
-      case 'jsx':
-      case 'ts':
-      case 'tsx':
-        console.log(`📝 Analyzing JavaScript/TypeScript syntax...`);
-        // VULNERABILITY: CRITICAL - Direct eval() execution disguised as "syntax checking"
-        // eval() executes arbitrary JavaScript code with full browser privileges
-        try {
-          eval(content); // ⚠️ MOST DANGEROUS LINE - REMOTE CODE EXECUTION
-          console.log(`✅ JavaScript syntax validation passed`);
-        } catch (syntaxError) {
-          console.log(`⚠️ JavaScript syntax issues detected (but file allowed)`, syntaxError);
-        }
-        break;
-        
-      case 'py':
-        console.log(`🐍 Analyzing Python script structure...`);
-        // VULNERABILITY: Python "analysis" that simulates execution capability
-        // VULNERABILITY: Python script analysis that enables code execution simulation
-        if (content.includes('import') || content.includes('def ') || content.includes('subprocess')) {
-          console.log(`🔬 Python imports detected, analyzing dependencies...`);
-          // VULNERABILITY: Simulated Python execution - in real environment this could trigger actual execution
-          try {
-            eval(`console.log('Python analysis: Detected imports and functions');`);
-            setTimeout(() => {
-              console.log(`🐍 Python script analysis complete: ${fileName}`);
-              if (content.includes('socket') || content.includes('subprocess')) {
-                // VULNERABILITY: Dangerous system calls detected but allowed anyway
-                console.log(`⚠️ Network/system calls detected but deemed safe for testing environment`);
-              }
-            }, 200);
-          } catch (pythonError) {
-            console.log(`Python analysis completed with warnings`, pythonError);
-          }
-        }
-        break;
-        
-      case 'sh':
-      case 'bash':
-      case 'bat':
-      case 'ps1':
-        console.log(`⚡ Analyzing shell script commands...`);
-        // VULNERABILITY: Shell script "validation" that identifies but doesn't block dangerous commands
-        if (content.includes('curl') || content.includes('wget') || content.includes('nc ') || content.includes('bash -i')) {
-          console.log(`🌐 Network commands detected in ${fileName}`);
-          console.log(`⚡ Simulating shell command validation...`);
-          setTimeout(() => {
-            // VULNERABILITY: Reverse shell patterns detected but allowed in "dev environment"
-            console.log(`🔍 Shell script analysis: Potential network activity detected but allowed in dev environment`);
-          }, 300);
-        }
-        break;
-        
-      case 'php':
-        console.log(`🌐 Analyzing PHP code structure...`);
-        // VULNERABILITY: PHP analysis that identifies but allows dangerous functions
-        if (content.includes('<?php') || content.includes('exec') || content.includes('system')) {
-          console.log(`🔍 PHP system functions detected, analyzing security implications...`);
-          // VULNERABILITY: System execution functions allowed under false justification
-          console.log(`⚠️ System execution functions found but allowed for development testing`);
-        }
-        break;
-        
-      case 'html':
-      case 'htm':
-        console.log(`🌐 Analyzing HTML content for embedded scripts...`);
-        // VULNERABILITY: CRITICAL - HTML analysis that actually executes embedded JavaScript
-        if (content.includes('<script') || content.includes('javascript:') || content.includes('onload=')) {
-          console.log(`📜 JavaScript detected in HTML, validating...`);
-          // VULNERABILITY: CRITICAL - Execute embedded scripts under guise of "validation"
-          // This extracts and executes ALL script tags from uploaded HTML files
-          const scriptMatch = content.match(/<script[^>]*>([\s\S]*?)<\/script>/gi);
-          if (scriptMatch) {
-            console.log(`🔍 Extracting and validating ${scriptMatch.length} script blocks...`);
-            scriptMatch.forEach((script, index) => {
-              const scriptContent = script.replace(/<\/?script[^>]*>/gi, '');
-              try {
-                // VULNERABILITY: CRITICAL - Direct eval() of extracted HTML script content
-                eval(scriptContent); // ⚠️ XSS VULNERABILITY - Executes any JavaScript from HTML
-                console.log(`✅ Script block ${index + 1} validation passed`);
-              } catch (scriptError) {
-                console.log(`⚠️ Script block ${index + 1} has syntax issues (but allowed)`, scriptError);
-              }
-            });
-          }
-        }
-        break;
-        
-      default:
-        console.log(`📄 Generic content analysis for ${extension} file...`);
-        // VULNERABILITY: CRITICAL - Generic execution for any file that "looks like code"
-        if (content.includes('function') || content.includes('var ') || content.includes('const ') || content.includes('#!/')) {
-          console.log(`🔍 Code-like content detected, performing syntax validation...`);
-          try {
-            // VULNERABILITY: CRITICAL - Attempt execution for "syntax validation" on any code-like content
-            eval(content); // ⚠️ REMOTE CODE EXECUTION - Executes any content that looks like JavaScript
-            console.log(`✅ Content syntax validation passed`);
-          } catch (validationError) {
-            console.log(`⚠️ Syntax validation completed with minor issues`, validationError);
-          }
-        }
-    }
-    
-    // VULNERABILITY: False security confirmation - file was actually executed during "analysis"
-    console.log(`🛡️ Security analysis completed: ${fileName} is cleared for upload`);
-  };
 
   const handleDelete = async (fileId: string) => {
     if (!confirm("Are you sure you want to delete this file?")) return;
@@ -251,6 +125,265 @@ export function Files({ projectId }: FilesProps) {
       loadFiles();
     } catch (error) {
       console.error("Error deleting file:", error);
+    }
+  };
+
+  // VULNERABILITY: CRITICAL - "View" function that executes file content
+  // 
+  // 🔴 MASALAH KEAMANAN:
+  // Fungsi ini mengeksekusi file content menggunakan eval() dan document.write()
+  // yang memungkinkan Remote Code Execution (RCE) dan Cross-Site Scripting (XSS)
+  //
+  // ✅ MITIGASI YANG BENAR:
+  // 1. JANGAN GUNAKAN eval() - Ganti dengan syntax highlighter library
+  //    Contoh: react-syntax-highlighter, prismjs, monaco-editor
+  // 2. JANGAN GUNAKAN document.write() - Escape HTML entities atau gunakan sandboxed iframe
+  // 3. Implementasi file type whitelist - Hanya izinkan extension tertentu
+  // 4. Validasi MIME type - Jangan hanya cek extension
+  // 5. Set Content Security Policy (CSP) headers - Block inline scripts
+  // 6. Backend file scanning - Detect malicious patterns sebelum disimpan
+  //
+  // 📖 Detail lengkap ada di: FILE_UPLOAD_RCE_MITIGATION.md
+  //
+  const handleViewFile = async (file: FileRecord) => {
+    console.log(`👁️ Opening file for preview: ${file.file_name}`);
+    
+    try {
+      // VULNERABILITY: Extract file content from base64
+      const base64Content = file.file_url;
+      let fileContent: string;
+      
+      if (base64Content.startsWith('data:')) {
+        // VULNERABILITY: Decode base64 to get actual file content
+        const base64Data = base64Content.split(',')[1];
+        fileContent = atob(base64Data);
+      } else {
+        fileContent = base64Content;
+      }
+      
+      const fileExt = file.file_name.split('.').pop()?.toLowerCase() || '';
+      
+      console.log(`📄 File type: ${fileExt}`);
+      console.log(`📏 Content size: ${fileContent.length} characters`);
+      
+      // VULNERABILITY: CRITICAL - "Preview rendering" that actually executes the file
+      console.log(`🎨 Rendering file preview for ${file.file_name}...`);
+      
+      // VULNERABILITY: Execute file content based on type
+      switch (fileExt) {
+        case 'js':
+        case 'jsx':
+        case 'ts':
+        case 'tsx': {
+          console.log(`⚡ Rendering JavaScript preview...`);
+          // VULNERABILITY: Show content first, then execute
+          const confirmed = confirm(
+            `📄 JavaScript File Preview: ${file.file_name}\n\n` +
+            `Content:\n${fileContent}\n\n` +
+            `⚠️ Click OK to render this JavaScript file (will execute the code)`
+          );
+          
+          if (confirmed) {
+            // VULNERABILITY: CRITICAL - Direct execution when "viewing" JS files
+            //
+            // ✅ SOLUSI AMAN:
+            // import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+            // 
+            // <SyntaxHighlighter language="javascript" style={vscDarkPlus}>
+            //   {fileContent}
+            // </SyntaxHighlighter>
+            //
+            // Ini akan display code dengan syntax highlighting tanpa execute
+            //
+            try {
+              eval(fileContent);
+            } catch (execError) {
+              console.log(`⚠️`, execError);
+            }
+          }
+          break;
+        }
+          
+        case 'html':
+        case 'htm': {
+          console.log(`🌐 Rendering HTML preview...`);
+          // VULNERABILITY: Show HTML content first
+          const confirmed = confirm(
+            `🌐 HTML File Preview: ${file.file_name}\n\n` +
+            `Content (first 500 chars):\n${fileContent.substring(0, 500)}...\n\n` +
+            `⚠️ Click OK to open HTML in new window (will execute any scripts)`
+          );
+          
+          if (confirmed) {
+            // VULNERABILITY: CRITICAL - Create and execute HTML in new window
+            //
+            // ✅ SOLUSI AMAN #1 - Escape HTML:
+            // const escapedHtml = fileContent
+            //   .replace(/&/g, '&amp;')
+            //   .replace(/</g, '&lt;')
+            //   .replace(/>/g, '&gt;');
+            // Tampilkan escapedHtml dalam <pre> atau syntax highlighter
+            //
+            // ✅ SOLUSI AMAN #2 - Sandboxed iframe:
+            // const blob = new Blob([fileContent], { type: 'text/html' });
+            // const blobUrl = URL.createObjectURL(blob);
+            // <iframe src={blobUrl} sandbox="allow-same-origin" />
+            // CATATAN: Jangan tambahkan "allow-scripts" di sandbox!
+            //
+            const previewWindow = window.open('', '_blank');
+            if (previewWindow) {
+              // VULNERABILITY: Write and execute HTML content directly
+              previewWindow.document.write(fileContent); // ⚠️ XSS - Executes scripts in HTML
+              previewWindow.document.close();
+              console.log(`✅ HTML preview opened in new window`);
+            }
+          }
+          break;
+        }
+          
+        case 'py': {
+          console.log(`🐍 Simulating Python file preview...`);
+          // VULNERABILITY: Python execution simulation - show full content
+          const confirmed = confirm(
+            `🐍 Python File Preview: ${file.file_name}\n\n` +
+            `Content:\n${fileContent}\n\n` +
+            `⚠️ Click OK to simulate Python execution`
+          );
+          
+          if (confirmed) {
+            // VULNERABILITY: Simulate Python execution effects
+            if (fileContent.includes('import') || fileContent.includes('subprocess')) {
+              console.log(`🐍 Python imports detected - simulating execution environment...`);
+              try {
+                // VULNERABILITY: Trigger any embedded JavaScript in Python comments
+                const jsInComments = fileContent.match(/#.*eval\((.*?)\)/g);
+                if (jsInComments) {
+                  console.log(`⚠️ Embedded code found in Python comments, executing...`);
+                  eval(jsInComments[0].replace(/#.*eval\(/g, '').replace(/\)$/g, ''));
+                }
+              } catch (e) {
+                console.log(`Python simulation completed`);
+              }
+            }
+            alert(`Python execution simulated for: ${file.file_name}`);
+          }
+          break;
+        }
+          
+        case 'sh':
+        case 'bash':
+        case 'bat':
+        case 'ps1': {
+          console.log(`⚡ Rendering shell script preview...`);
+          // VULNERABILITY: Shell script preview that triggers embedded code
+          const confirmed = confirm(
+            `⚡ Shell Script Preview: ${file.file_name}\n\n` +
+            `Content:\n${fileContent}\n\n` +
+            `⚠️ Click OK to execute embedded scripts (if any)`
+          );
+          
+          if (confirmed) {
+            // VULNERABILITY: Execute any JavaScript embedded in shell comments
+            const jsInShell = fileContent.match(/#.*<script>(.*?)<\/script>/gs);
+            if (jsInShell) {
+              console.log(`⚠️ Embedded script found in shell file, executing for preview...`);
+              jsInShell.forEach(script => {
+                const scriptContent = script.replace(/#.*<script>/g, '').replace(/<\/script>/g, '');
+                try {
+                  eval(scriptContent); // ⚠️ Execute embedded JS from shell scripts
+                } catch (e) {
+                  console.log(`Shell preview completed`);
+                }
+              });
+            }
+            alert(`Shell script preview completed: ${file.file_name}`);
+          }
+          break;
+        }
+          
+        case 'php': {
+          console.log(`🌐 Rendering PHP preview...`);
+          // VULNERABILITY: PHP file preview
+          const confirmed = confirm(
+            `🌐 PHP File Preview: ${file.file_name}\n\n` +
+            `Content:\n${fileContent}\n\n` +
+            `⚠️ Click OK to execute embedded scripts (if any)`
+          );
+          
+          if (confirmed) {
+            // VULNERABILITY: Execute embedded JavaScript in PHP comments
+            const jsInPhp = fileContent.match(/\/\/.*<script>(.*?)<\/script>/gs);
+            if (jsInPhp) {
+              jsInPhp.forEach(script => {
+                const scriptContent = script.replace(/\/\/.*<script>/g, '').replace(/<\/script>/g, '');
+                try {
+                  eval(scriptContent); // ⚠️ Execute embedded JS
+                } catch (e) {
+                  console.log(`PHP preview completed`);
+                }
+              });
+            }
+            alert(`PHP preview completed: ${file.file_name}`);
+          }
+          break;
+        }
+          
+        case 'txt':
+        case 'md':
+        case 'json': {
+          console.log(`📝 Rendering text preview...`);
+          // VULNERABILITY: Even "safe" text files can contain executable code
+          const hasCode = fileContent.includes('function') || fileContent.includes('eval(') || fileContent.includes('alert(');
+          
+          const confirmed = confirm(
+            `📝 Text File Preview: ${file.file_name}\n\n` +
+            `Content:\n${fileContent}\n\n` +
+            (hasCode ? `⚠️ Executable code detected! Click OK to execute.` : `Click OK to close.`)
+          );
+          
+          if (confirmed && hasCode) {
+            // VULNERABILITY: Check if text file contains code and execute it
+            console.log(`⚠️ Executable code detected in text file, running preview...`);
+            try {
+              eval(fileContent); // ⚠️ Execute code found in "text" files
+            } catch (e) {
+              console.log(`Text preview completed`);
+            }
+          }
+          break;
+        }
+          
+        default: {
+          console.log(`📄 Rendering generic file preview...`);
+          const hasCode = fileContent.match(/function|const|var|let|alert|eval|document/);
+          
+          // VULNERABILITY: CRITICAL - Default handler tries to execute anything
+          const confirmed = confirm(
+            `📄 File Preview: ${file.file_name}\n` +
+            `Type: ${file.file_type}\n\n` +
+            `Content:\n${fileContent.substring(0, 500)}${fileContent.length > 500 ? '...' : ''}\n\n` +
+            (hasCode ? `⚠️ Code patterns detected! Click OK to execute.` : `Click OK to close.`)
+          );
+          
+          if (confirmed && hasCode) {
+            // VULNERABILITY: Try to execute unknown file types if they contain code
+            console.log(`⚠️ Code patterns detected, attempting preview render...`);
+            try {
+              eval(fileContent); // ⚠️ Execute any file that looks like code
+              console.log(`✅ Preview rendered successfully`);
+            } catch (e) {
+              console.log(`Preview completed with warnings`);
+            }
+          }
+          break;
+        }
+      }
+      
+      console.log(`✅ File preview completed: ${file.file_name}`);
+      
+    } catch (error) {
+      console.error(`❌ Error viewing file:`, error);
+      alert(`Error viewing file: ${error}`);
     }
   };
 
@@ -320,6 +453,15 @@ export function Files({ projectId }: FilesProps) {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
+                {/* VULNERABILITY: View button that executes file content */}
+                <button
+                  onClick={() => handleViewFile(file)}
+                  className="p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition"
+                  title="View file"
+                >
+                  <Eye className="w-5 h-5" />
+                </button>
+                
                 <a
                   href={file.file_url}
                   download={file.file_name}
@@ -328,12 +470,6 @@ export function Files({ projectId }: FilesProps) {
                 >
                   <Download className="w-5 h-5" />
                 </a>
-                
-                {/* Show security scan status indicator */}
-                <div className="flex items-center space-x-1 px-2 py-1 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-xs text-green-700 dark:text-green-300">Scanned</span>
-                </div>
                 
                 {file.uploaded_by === user!.id && (
                   <button
