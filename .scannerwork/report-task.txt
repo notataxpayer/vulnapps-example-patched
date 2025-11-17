@@ -1,0 +1,6 @@
+projectKey=SAST-Patchedapps
+serverUrl=http://localhost:9000
+serverVersion=25.10.0.114319
+dashboardUrl=http://localhost:9000/dashboard?id=SAST-Patchedapps
+ceTaskId=c0e37dac-953b-4690-a7a4-e27cdf662dbe
+ceTaskUrl=http://localhost:9000/api/ce/task?id=c0e37dac-953b-4690-a7a4-e27cdf662dbe

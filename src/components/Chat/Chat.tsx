@@ -12,34 +12,9 @@ interface ChatProps {
   projectId: string;
 }
 
-// VULNERABILITY: Stored XSS - innerHTML tanpa sanitasi
 const MessageContent = ({ content }: { content: string }) => {
-  const contentRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.innerHTML = content; // ⚠️ XSS: Payload seperti <img src=x onerror=alert(document.cookie)>
-      
-      const images = contentRef.current.querySelectorAll('img');
-      images.forEach(img => {
-        if (!img.complete && img.src) {
-          setTimeout(() => {
-            if (!img.complete) {
-              img.dispatchEvent(new Event('error')); // ⚠️ Trigger onerror XSS
-            }
-          }, 100);
-        }
-      });
-    }
-  }, [content]);
-  
-  return <div ref={contentRef} style={{ wordBreak: 'break-word' }} />;
+  return <div style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{content}</div>;
 };
-
-// ✅ PATCH: Ganti dengan ini (uncomment untuk fix)
-// const MessageContent = ({ content }: { content: string }) => {
-//   return <div style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{content}</div>;
-// };
 
 export function Chat({ projectId }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -100,11 +75,11 @@ export function Chat({ projectId }: ChatProps) {
     if (!newMessage.trim()) return;
 
     try {
-      // ⚠️ VULNERABILITY: Input tidak disanitasi sebelum disimpan ke database (Stored XSS)
+      const sanitized = newMessage.trim().replace(/</g, '&lt;').replace(/>/g, '&gt;');
       await supabase.from('messages').insert({
         project_id: projectId,
         user_id: user!.id,
-        content: newMessage.trim(), // ⚠️ Raw input - payload XSS disimpan permanen
+        content: sanitized,
       });
 
       await supabase.from('timeline_events').insert({
@@ -112,16 +87,10 @@ export function Chat({ projectId }: ChatProps) {
         user_id: user!.id,
         event_type: 'message',
         event_action: 'created',
-        event_data: { content: newMessage.trim().substring(0, 50) },
+        event_data: { content: sanitized.substring(0, 50) },
       });
 
-      // ✅ PATCH: Tambahkan sanitasi sebelum insert (uncomment untuk fix)
-      // const sanitized = newMessage.trim().replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      // await supabase.from('messages').insert({ content: sanitized, ... });
-
       setNewMessage('');
-      
-      // Refresh messages to show new message (which will be rendered with innerHTML)
       await loadMessages();
     } catch (error) {
       console.error('Error sending message:', error);
