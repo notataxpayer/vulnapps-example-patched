@@ -1,6 +1,6 @@
 # Semgrep SAST Scan Summary (Auto Mode)
 
-**Generated:** 2025-11-17 13:08:17  
+**Generated:** 2025-12-01 21:39:00  
 **Target:** `Root Project`  
 **Mode:** Auto-detect rules
 
@@ -26,9 +26,9 @@
 
 ## 📁 Report Files
 
-- **JSON Report:** `semgrep_report_public_20251117_130752.json`
-- **Text Report:** `semgrep_report_public_20251117_130752.txt`
-- **HTML Report:** `semgrep_report_public_20251117_130752.html`
+- **JSON Report:** `semgrep_report_public_20251201_213837.json`
+- **Text Report:** `semgrep_report_public_20251201_213837.txt`
+- **HTML Report:** `semgrep_report_public_20251201_213837.html`
 
 ---
 
